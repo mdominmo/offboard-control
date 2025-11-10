@@ -1,0 +1,8 @@
+from enum import Enum
+
+class States(Enum):
+    STATUS = "VEHICLE_STATUS"
+    GLOBAL_POSITION = "GLOBAL_POSITION"
+    LOCAL_POSITION = "LOCAL_POSITION"
+    
+    OPERATION_STATUS = "OPERATION_STATUS"

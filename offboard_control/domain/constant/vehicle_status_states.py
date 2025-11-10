@@ -1,0 +1,14 @@
+class VehicleStatusStates:
+
+    STATE_FAILED = -1
+    STATE_UNKNOWN = 100
+
+    STATE_DISARMED = 0
+    STATE_ARMED = 1
+    STATE_TAKEOFF = 2
+    STATE_HOLD = 3
+    STATE_GOING_TO_WAYPOINT = 4 
+    STATE_ON_AIR = 5
+    STATE_RTL = 6
+    STATE_OFFBOARD = 7
+    
