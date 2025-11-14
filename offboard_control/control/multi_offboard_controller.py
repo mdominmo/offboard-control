@@ -20,8 +20,18 @@ class MultiOffboardController(IMultiOffboardController):
         self.controllers = controllers
         self.command_period = .05
 
+
+    def set_home_all(self, home: GeoPose):
+        
+        self.node.get_logger().debug(f"Setting home to all vehicles.")
+        
+        for controller in self.controllers:
+            controller.set_home(home)
+
+
     def arm(self, ids: list[int]):
         pass
+    
 
     def arm_all(self):
         

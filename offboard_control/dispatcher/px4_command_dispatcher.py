@@ -6,6 +6,7 @@ from offboard_control.domain.dispatcher.i_command_dispatcher import ICommandDisp
 from offboard_control.domain.model.configuration.communication_configuration import CommunicationConfiguration
 from offboard_control.domain.constant.outgoing_communication import OutgoingCommunication
 from geometry_msgs.msg import Pose
+from geographic_msgs.msg import GeoPose
 
 class Px4CommandDispatcher(ICommandDispatcher):
 
@@ -41,24 +42,34 @@ class Px4CommandDispatcher(ICommandDispatcher):
 
     def arm(self) -> None:
         self.publish_command(VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM, param1=1.0)
-        self.node.get_logger().debug("Px4 Arm command send")
+        self.node.get_logger().debug("Px4 Arm command sent")
 
     def disarm(self) -> None:
         self.publish_command(VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM, param1=0.0)
-        self.node.get_logger().debug("Px4 Disarm command send")
+        self.node.get_logger().debug("Px4 Disarm command sent")
 
     def take_off(self, height=10.0) -> None:
         # self.publish_command(VehicleCommand.VEHICLE_CMD_NAV_TAKEOFF, param1 = 1.0, param2 = 3.0, param7 = height)
         self.publish_command(VehicleCommand.VEHICLE_CMD_NAV_TAKEOFF,param1=1.0,param7=height)
-        self.node.get_logger().debug("Px4 Takeoff command send")
+        self.node.get_logger().debug("Px4 Takeoff command sent")
 
     def offboard(self) -> None:
         self.publish_command(VehicleCommand.VEHICLE_CMD_DO_SET_MODE, 1., 6.)
-        self.node.get_logger().debug("Px4 Offboard command send")
+        self.node.get_logger().debug("Px4 Offboard command sent")
 
     def hold(self) -> None:
         self.publish_command(VehicleCommand.VEHICLE_CMD_DO_SET_MODE, 1., 4., 3.)
-        self.node.get_logger().debug("Px4 Hold command send")
+        self.node.get_logger().debug("Px4 Hold command sent")
+
+    def set_home(self, home: GeoPose):
+        self.publish_command(
+            VehicleCommand.VEHICLE_CMD_DO_SET_HOME, 
+            param1=0.,
+            param5=home.position.latitude,
+            param6=home.position.longitude,
+            param7=home.position.altitude
+        )
+        self.node.get_logger().debug("Px4 Set Home sent")
 
     def go_to(
             self, 
@@ -101,12 +112,12 @@ class Px4CommandDispatcher(ICommandDispatcher):
     def return_to_launch(self) -> None:
         self.publish_command(
             VehicleCommand.VEHICLE_CMD_NAV_RETURN_TO_LAUNCH)
-        self.node.get_logger().debug("Return to launch command send")
+        self.node.get_logger().debug("Return to launch command sent")
 
     def land(self) -> None:
         self.publish_command(
             VehicleCommand.VEHICLE_CMD_NAV_LAND)
-        self.node.get_logger().debug("Land command send")
+        self.node.get_logger().debug("Land command sent")
 
     def offboard_heartbeat(self):
         offboard_msg = OffboardControlMode()

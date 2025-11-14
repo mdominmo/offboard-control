@@ -128,42 +128,6 @@ class OffboardController(ISingleOffboardController):
 
         self.operation_timer = self.node.create_timer(self.command_period, callback, callback_group=self.operation_group)
         return self.future
-
-
-    # def take_off(self, height=10.0) -> None:
-
-    #     self.future = Future()
-    #     tol = 1.5
-
-    #     ref_amsl_height = self.state_manager.state_repositories[States.GLOBAL_POSITION].get().alt
-    #     z0 = self.state_manager.state_repositories[States.LOCAL_POSITION].get().z
-        
-    #     self.command_dispatcher.arm()
-    #     self.command_dispatcher.take_off(height + ref_amsl_height)
-        
-    #     def callback():
-  
-    #         if self.check_failsafe():
-    #             self.operation_timer.cancel()
-    #             self.future.set_result({
-    #                 "success": False,
-    #                 "msg": "Takeoff operation failed"
-    #             })
-    #             return self.future
-
-    #         current_height = self.state_manager.state_repositories[States.LOCAL_POSITION].get().z
-
-    #         if self.check_hold() and abs((-current_height + z0) - height) < tol :
-    #             self.operation_timer.cancel()
-    #             self.future.set_result({
-    #             "success": True,
-    #             "msg": "Vehicle on air"
-    #         })
-    #             return
-    #         self.command_dispatcher.arm()
-
-    #     self.operation_timer = self.node.create_timer(self.command_period, callback, callback_group=self.operation_group)
-    #     return self.future
     
 
     def take_off(
@@ -272,33 +236,15 @@ class OffboardController(ISingleOffboardController):
         # TODO Check the orientation
         current_pose = self.state_manager.state_repositories[States.LOCAL_POSITION].get()
 
-        o_lat = current_pose.ref_lat
-        o_lon = current_pose.ref_lon
-        o_alt = current_pose.ref_alt
-
-        d_origin_x, d_origin_y, d_origin_z = gps_to_ned(
-                o_lat, 
-                o_lon, 
-                o_alt,
-                gps_origin.position.latitude,
-                gps_origin.position.longitude,
-                gps_origin.position.altitude
-        )
-
         start_pose  = Pose()
         start_pose.position.x = current_pose.x
         start_pose.position.y = current_pose.y   
         start_pose.position.z = current_pose.z   
         start_yaw = current_pose.heading
 
-        target_local_pose.position.x = pose.position.x - d_origin_x
-        target_local_pose.position.y = pose.position.y - d_origin_y
-        target_local_pose.position.z = pose.position.z - d_origin_z
-        target_local_pose.orientation = pose.orientation 
-
         trajectory, dts = utils.generate_trajectory_with_dt(
             start_pose, 
-            target_local_pose,
+            pose,
             n_points,
             speed,
             start_yaw,
@@ -334,18 +280,9 @@ class OffboardController(ISingleOffboardController):
 
             index = max([i for i, t in enumerate(time_from_start) if t <= elapsed_time])
             
-            target_local_pose = Pose()
-            target_local_pose.position.x = trajectory[index]['pose'].position.x - d_origin_x
-            target_local_pose.position.y = trajectory[index]['pose'].position.y - d_origin_y
-            target_local_pose.position.z = trajectory[index]['pose'].position.z - d_origin_z
-     
-            target_yaw = float(trajectory[index]['yaw'])
-            target_velocity = trajectory[index]["twist"]
-
             self.command_dispatcher.go_to(
-                target_local_pose,
-                # target_velocity,
-                yaw=target_yaw
+                trajectory[index]['pose'],
+                yaw = float(trajectory[index]['yaw'])
             )  
 
         self.operation_timer = self.node.create_timer(self.command_period, callback, callback_group=self.operation_group)
@@ -460,20 +397,6 @@ class OffboardController(ISingleOffboardController):
         self.future = Future()
         start_time = self.clock.now()
 
-        local_position = self.state_manager.state_repositories[States.LOCAL_POSITION].get()
-        o_lat = local_position.ref_lat
-        o_lon = local_position.ref_lon
-        o_alt = local_position.ref_alt
-
-        d_origin_x, d_origin_y, d_origin_z = gps_to_ned(
-            o_lat, 
-            o_lon, 
-            o_alt,
-            gps_origin.position.latitude,
-            gps_origin.position.longitude,
-            gps_origin.position.altitude
-        )
-
         def callback():
             nonlocal start_time
 
@@ -505,15 +428,9 @@ class OffboardController(ISingleOffboardController):
             target_local_pose.position.y = poses[index].position.y - d_origin_y
             target_local_pose.position.z = poses[index].position.z - d_origin_z
      
-            target_yaw = float(yaw[index])
-
-            self.node.get_logger().debug(f"ned quaternion offboard_controller: {poses[index].orientation}")
-            target_velocity = velocities[index]
-            
             self.command_dispatcher.go_to(
-                target_local_pose,
-                # target_velocity,
-                yaw=target_yaw
+                poses[index],
+                yaw=float(yaw[index])
             )
 
         self.operation_timer = self.node.create_timer(self.command_period, callback, callback_group=self.operation_group)
@@ -665,7 +582,11 @@ class OffboardController(ISingleOffboardController):
                 "success": True,
                 "msg": "Operation canceled"
             })
-        
+    
+
+    def set_home(self, home: GeoPose):
+        self.command_dispatcher.set_home(home)
+    
 
     def offboard_mode(self):
         self.command_dispatcher.offboard()
