@@ -30,7 +30,7 @@ class OffboardController(ISingleOffboardController):
         self.node = node
         self.command_dispatcher = command_dispatcher
         self.state_manager = state_manager
-        self.command_period = 0.02
+        self.command_period = 0.01
         self.operation_timer = None
         self.heartbeat_timer = None
         self.operation_future = None
@@ -42,7 +42,7 @@ class OffboardController(ISingleOffboardController):
         self._target_velocity = None
         self._target_yaw = None
 
-        self.node.create_timer(
+        self.heartbeat_timer = self.node.create_timer(
             self.command_period,
             self.heartbeat_callback,
             operation_group
@@ -387,7 +387,6 @@ class OffboardController(ISingleOffboardController):
 
     def trajectory_following(
         self,
-        gps_origin: GeoPose, 
         poses: list[Pose],
         velocities: list[Twist],
         yaw: list[float],
@@ -412,7 +411,10 @@ class OffboardController(ISingleOffboardController):
             time_from_start = [0.0] + np.cumsum(dts).tolist()
 
             if elapsed_time >= time_from_start[-1]:
-                # Fin de trayectoria
+                self.command_dispatcher.go_to(
+                    poses[-1],
+                    yaw=float(yaw[-1])
+                )
                 self.future.set_result({
                     "success": True,
                     "msg": "Trajectory completed"
@@ -422,12 +424,7 @@ class OffboardController(ISingleOffboardController):
                 return
 
             index = max([i for i, t in enumerate(time_from_start) if t <= elapsed_time])
-
-            target_local_pose = Pose()
-            target_local_pose.position.x = poses[index].position.x - d_origin_x
-            target_local_pose.position.y = poses[index].position.y - d_origin_y
-            target_local_pose.position.z = poses[index].position.z - d_origin_z
-     
+            self.node.get_logger().debug(f"traj index: {index}")
             self.command_dispatcher.go_to(
                 poses[index],
                 yaw=float(yaw[index])

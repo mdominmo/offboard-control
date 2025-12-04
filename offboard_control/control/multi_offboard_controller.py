@@ -373,7 +373,6 @@ class MultiOffboardController(IMultiOffboardController):
     def trajectory_following(
             self, 
             ids: list[int], 
-            gps_origin: GeoPose, 
             trajectories
         ):
         
@@ -384,7 +383,7 @@ class MultiOffboardController(IMultiOffboardController):
 
         for id, trajectory in zip(ids, trajectories):
 
-            futures.append(self.controllers[id].trajectory_following(gps_origin, trajectory[0], trajectory[1], trajectory[2], trajectory[3]))
+            futures.append(self.controllers[id].trajectory_following(trajectory[0], trajectory[1], trajectory[2], trajectory[3]))
 
         def callback():
 
@@ -399,7 +398,7 @@ class MultiOffboardController(IMultiOffboardController):
             
             if all(future.done() for future in futures):
                 timer.cancel()
-                self.node.get_logger().debug(f"vehicles {ids} trajectory finished")
+                self.node.get_logger().info(f"vehicles {ids} trajectory finished")
                 future.set_result({
                     "success": True,
                     "msg": "Multi vehicle operation perfomed."
@@ -412,7 +411,6 @@ class MultiOffboardController(IMultiOffboardController):
 
     def trajectory_following_all(
             self, 
-            gps_origin: GeoPose, 
             trajectories
         ):
         
@@ -423,12 +421,11 @@ class MultiOffboardController(IMultiOffboardController):
 
         for controller, trajectory in zip(self.controllers, trajectories):
             futures.append(controller.trajectory_following(
-                gps_origin, 
                 trajectory[0],
                 trajectory[1],
                 trajectory[2],
                 trajectory[3]
-                ))
+            ))
 
         def callback(): 
 

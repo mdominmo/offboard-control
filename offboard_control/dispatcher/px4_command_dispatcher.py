@@ -127,11 +127,14 @@ class Px4CommandDispatcher(ICommandDispatcher):
         offboard_msg.acceleration = False
         self.publisher_offboard_mode.publish(offboard_msg)          
 
-    def publish_command(self, command, param1=0.0, param2=0.0, param3=0.0, param7=10.0):
+    def publish_command(self, command, param1=0.0, param2=0.0, param3=0.0, param4=float('nan'), param5=float('nan'), param6=float('nan'), param7=10.0):
         msg = VehicleCommand()
         msg.param1 = param1
         msg.param2 = param2
         msg.param3 = param3
+        msg.param4 = param4
+        msg.param5 = param5
+        msg.param6 = param6
         msg.param7 = param7    # altitude value in takeoff command
         msg.command = command  # command ID
         msg.target_system = (1 + self.vehicle_id)  # system which should execute the command
