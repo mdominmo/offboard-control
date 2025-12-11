@@ -140,13 +140,14 @@ class OffboardController(ISingleOffboardController):
         yaw = self.state_manager.state_repositories[States.LOCAL_POSITION].get().heading
         p0 = self.state_manager.state_repositories[States.LOCAL_POSITION].get().get_pose()
         p0.position.z-=height
-        
         return self.go_to_local(ref, p0, n_points=n_points, final_yaw=yaw)    
     
     
     def hold(self) -> None:
-        self.command_dispatcher.hold()
-    
+        current = self.state_manager.state_repositories[States.LOCAL_POSITION].get().get_pose()
+        yaw = self.state_manager.state_repositories[States.LOCAL_POSITION].get().heading
+        self.command_dispatcher.go_to(pose=current, yaw=yaw)
+
     
     def go_to(self, pose: GeoPose) -> None:
 
@@ -392,12 +393,13 @@ class OffboardController(ISingleOffboardController):
         yaw: list[float],
         dts: list[float]
     ) -> None:
-
+        
         self.future = Future()
         start_time = self.clock.now()
-
+        time_from_start = np.cumsum(dts).tolist()
+        EPS = .2
+        
         def callback():
-            nonlocal start_time
 
             if not self.check_offboard():
                 self.operation_timer.cancel()
@@ -405,34 +407,50 @@ class OffboardController(ISingleOffboardController):
                     "success": True,
                     "msg": "Not in offboard, Returning control to the pilot"
                 })
-                return self.future
-
-            elapsed_time = (self.clock.now() - start_time).nanoseconds / 1e9
-            time_from_start = [0.0] + np.cumsum(dts).tolist()
-
-            if elapsed_time >= time_from_start[-1]:
-                self.command_dispatcher.go_to(
-                    poses[-1],
-                    yaw=float(yaw[-1])
-                )
-                self.future.set_result({
-                    "success": True,
-                    "msg": "Trajectory completed"
-                })
-                self.node.get_logger().debug("Trajectory finished")
-                self.operation_timer.cancel()
                 return
 
-            index = max([i for i, t in enumerate(time_from_start) if t <= elapsed_time])
-            self.node.get_logger().debug(f"traj index: {index}")
+            elapsed_time = (self.clock.now() - start_time).nanoseconds / 1e9
+          
+            if elapsed_time >= time_from_start[-1]:
+                current = self.state_manager.state_repositories[States.LOCAL_POSITION].get().get_pose()
+                goal = poses[-1].position
+                cur  = current.position
+
+                dx = abs(cur.x - goal.x)
+                dy = abs(cur.y - goal.y)
+                dz = abs(cur.z - goal.z)
+
+                self.node.get_logger().debug(
+                    f"Elapsed {elapsed_time:.2f}s | Δfinal: dx={dx:.2f}, dy={dy:.2f}, dz={dz:.2f}"
+                )
+                self.command_dispatcher.go_to(poses[-1], yaw=float(yaw[-1]))
+                if dx < EPS and dy < EPS and dz < EPS:
+                    self.future.set_result({
+                        "success": True,
+                        "msg": "Trajectory completed"
+                    })
+                    self.node.get_logger().debug("Trajectory finished")
+                    self.operation_timer.cancel()
+                    return
+                
+            index = max([i for i, t in enumerate(time_from_start)
+                        if elapsed_time >= t] or [0])
+
+            self.node.get_logger().debug(f"traj index: {index}/{len(poses)-1}")
+
             self.command_dispatcher.go_to(
                 poses[index],
                 yaw=float(yaw[index])
             )
 
-        self.operation_timer = self.node.create_timer(self.command_period, callback, callback_group=self.operation_group)
+        self.operation_timer = self.node.create_timer(
+            self.command_period, 
+            callback, 
+            callback_group=self.operation_group
+        )
+        
         return self.future
-    
+
 
     def follow_target(
         self,

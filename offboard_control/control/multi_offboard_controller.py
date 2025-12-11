@@ -56,6 +56,7 @@ class MultiOffboardController(IMultiOffboardController):
         timer = self.node.create_timer(self.command_period, callback)
         return future
     
+    
     def disarm_all(self):
         
         self.node.get_logger().debug(f"Disarming all vehicles")
@@ -398,7 +399,7 @@ class MultiOffboardController(IMultiOffboardController):
             
             if all(future.done() for future in futures):
                 timer.cancel()
-                self.node.get_logger().info(f"vehicles {ids} trajectory finished")
+                self.node.get_logger().debug(f"vehicles {ids} trajectory finished")
                 future.set_result({
                     "success": True,
                     "msg": "Multi vehicle operation perfomed."

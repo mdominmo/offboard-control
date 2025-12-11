@@ -57,7 +57,6 @@ class SimUAVSConfigurationService(IConfigurationService):
 
             incomming_data_configuration = {}
 
-            # Ensure that we can reach these messages
             incomming_data_configuration[States.STATUS] = Ros2CommunicationDataConfiguration(
                 internal_id = States.STATUS,
                 external_id = "VehicleStatus",
